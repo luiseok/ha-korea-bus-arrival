@@ -1,0 +1,34 @@
+{
+  "config": {
+    "title": "Korea Bus",
+    "step": {
+      "user": {
+        "title": "Set up Korea Bus",
+        "description": "Set up your bus stop information",
+        "data": {
+          "bus_stop_id": "Bus Stop ID",
+          "bus_number": "Bus Number",
+          "name": "Name (Optional)"
+        }
+      }
+    },
+    "error": {
+      "invalid_bus_stop": "Invalid bus stop ID",
+      "invalid_bus_number": "Invalid bus number",
+      "cannot_connect": "Failed to connect to the service"
+    },
+    "abort": {
+      "already_configured": "This bus stop and number combination is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Korea Bus Options",
+        "data": {
+          "scan_interval": "Update interval (seconds)"
+        }
+      }
+    }
+  }
+}

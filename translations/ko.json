@@ -1,0 +1,34 @@
+{
+  "config": {
+    "title": "버스 도착 정보",
+    "step": {
+      "user": {
+        "title": "버스 도착 정보 설정",
+        "description": "버스 정류장 정보를 설정합니다",
+        "data": {
+          "bus_stop_id": "정류장 ID",
+          "bus_number": "버스 번호",
+          "name": "이름 (선택사항)"
+        }
+      }
+    },
+    "error": {
+      "invalid_bus_stop": "잘못된 정류장 ID입니다",
+      "invalid_bus_number": "잘못된 버스 번호입니다",
+      "cannot_connect": "서비스 연결에 실패했습니다"
+    },
+    "abort": {
+      "already_configured": "이미 설정된 정류장과 버스 번호 조합입니다"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "버스 도착 정보 옵션",
+        "data": {
+          "scan_interval": "업데이트 주기 (초)"
+        }
+      }
+    }
+  }
+}
