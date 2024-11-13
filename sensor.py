@@ -1,136 +1,155 @@
-"""Bus arrival sensor for Home Assistant."""
-import logging
+"""Support for Korea Bus sensors."""
 from datetime import timedelta
+import logging
 import aiohttp
 import async_timeout
-import voluptuous as vol
 
-from homeassistant.components.sensor import PLATFORM_SCHEMA, SensorEntity
-from homeassistant.const import CONF_NAME, ATTR_ATTRIBUTION
+from homeassistant.components.sensor import SensorEntity
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+from homeassistant.helpers.update_coordinator import (
+    CoordinatorEntity,
+    DataUpdateCoordinator,
+    UpdateFailed,
+)
+
+from .const import (
+    DOMAIN,
+    CONF_BUS_STOP_ID,
+    CONF_BUS_NUMBER,
+    CONF_NAME,
+    DEFAULT_SCAN_INTERVAL,
+)
 
 _LOGGER = logging.getLogger(__name__)
-
-# 설정값 정의
-CONF_BUS_STOP_ID = "busStopId"
-CONF_BUS_NUMBER = "busNumber"
-CONF_SCAN_INTERVAL = "scan_interval"
-
-DEFAULT_NAME = "Bus Arrival"
-DEFAULT_SCAN_INTERVAL = 60
 
 # API 엔드포인트
 BASE_URL = "https://m.map.kakao.com/actions/busesInBusStopJson"
 
-# 설정 스키마 정의
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Required(CONF_BUS_STOP_ID): cv.string,
-    vol.Required(CONF_BUS_NUMBER): cv.string,
-    vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
-    vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): cv.positive_int,
-})
-
-async def async_setup_platform(
+async def async_setup_entry(
     hass: HomeAssistant,
-    config: ConfigType,
+    entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
-    discovery_info: DiscoveryInfoType | None = None
 ) -> None:
-    """Set up the bus arrival sensor."""
-    name = config[CONF_NAME]
-    bus_stop_id = config[CONF_BUS_STOP_ID]
-    bus_number = config[CONF_BUS_NUMBER]
-    scan_interval = config[CONF_SCAN_INTERVAL]
-
+    """Set up the Korea Bus sensor from config entry."""
     session = async_get_clientsession(hass)
-
-    async_add_entities(
-        [BusArrivalSensor(name, bus_stop_id, bus_number, session, scan_interval)],
-        True,
+    
+    coordinator = BusDataUpdateCoordinator(
+        hass,
+        session,
+        entry,
+        _LOGGER,
+        name="bus_sensor",
+        update_interval=timedelta(
+            seconds=entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
+        ),
     )
 
-class BusArrivalSensor(SensorEntity):
-    """Implementation of the bus arrival sensor."""
+    # 초기 데이터 가져오기
+    await coordinator.async_config_entry_first_refresh()
 
-    def __init__(self, name, bus_stop_id, bus_number, session, scan_interval):
-        """Initialize the sensor."""
-        self._name = name
-        self._bus_stop_id = bus_stop_id
-        self._bus_number = bus_number
-        self._session = session
-        self._scan_interval = timedelta(seconds=scan_interval)
-        self._state = None
-        self._attributes = {}
-        self._available = True
+    async_add_entities(
+        [KoreaBusSensor(coordinator, entry)],
+        False,
+    )
 
-    @property
-    def name(self):
-        """Return the name of the sensor."""
-        return f"{self._name} {self._bus_number}"
+class BusDataUpdateCoordinator(DataUpdateCoordinator):
+    """Class to manage fetching bus data."""
 
-    @property
-    def state(self):
-        """Return the state of the sensor."""
-        return self._state
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        session: aiohttp.ClientSession,
+        entry: ConfigEntry,
+        logger: logging.Logger,
+        name: str,
+        update_interval: timedelta,
+    ) -> None:
+        """Initialize the coordinator."""
+        super().__init__(
+            hass,
+            logger,
+            name=name,
+            update_interval=update_interval,
+        )
+        self.session = session
+        self.bus_stop_id = entry.data[CONF_BUS_STOP_ID]
+        self.bus_number = entry.data[CONF_BUS_NUMBER]
 
-    @property
-    def extra_state_attributes(self):
-        """Return the state attributes."""
-        return self._attributes
-
-    @property
-    def available(self):
-        """Return True if entity is available."""
-        return self._available
-
-    async def async_update(self):
-        """Fetch new state data for the sensor."""
+    async def _async_update_data(self):
+        """Fetch data from API."""
         try:
-            url = f"{BASE_URL}?busStopId={self._bus_stop_id}"
-
             async with async_timeout.timeout(10):
-                async with self._session.get(url) as response:
+                url = f"{BASE_URL}?busStopId={self.bus_stop_id}"
+                async with self.session.get(url) as response:
                     if response.status != 200:
-                        self._available = False
-                        _LOGGER.error("Failed to get data from API: %s", response.status)
-                        return
+                        raise UpdateFailed(f"Error communicating with API: {response.status}")
                     
                     data = await response.json()
 
             # 해당하는 버스 찾기
             bus_info = None
             for bus in data.get("busesList", []):
-                if bus.get("name") == self._bus_number:
+                if bus.get("name") == self.bus_number:
                     bus_info = bus
                     break
 
             if bus_info is None:
-                self._available = False
-                _LOGGER.warning("No bus found with number %s", self._bus_number)
-                return
+                raise UpdateFailed(f"No bus found with number {self.bus_number}")
 
-            # 상태 및 속성 업데이트
-            self._available = True
-            self._state = bus_info.get("vehicleStateMessage", "알 수 없음")
+            return bus_info
+
+        except asyncio.TimeoutError as error:
+            raise UpdateFailed(f"Timeout error fetching data: {error}")
+        except aiohttp.ClientError as error:
+            raise UpdateFailed(f"Error fetching data: {error}")
+        except Exception as error:
+            raise UpdateFailed(f"Unexpected error: {error}")
+
+class KoreaBusSensor(CoordinatorEntity, SensorEntity):
+    """Representation of a Korea Bus Sensor."""
+
+    def __init__(self, coordinator, entry):
+        """Initialize the sensor."""
+        super().__init__(coordinator)
+        self.entry = entry
+        
+        # Entity ID 생성
+        self._attr_unique_id = f"{entry.data[CONF_BUS_STOP_ID]}_{entry.data[CONF_BUS_NUMBER]}"
+        
+        # 이름 설정 (설정에서 지정한 이름이 있으면 사용, 없으면 기본 이름 생성)
+        self._attr_name = entry.data.get(CONF_NAME) or f"Bus {entry.data[CONF_BUS_NUMBER]}"
+
+    @property
+    def native_value(self):
+        """Return the state of the sensor."""
+        if self.coordinator.data is None:
+            return None
+        return self.coordinator.data.get("vehicleStateMessage", "알 수 없음")
+
+    @property
+    def extra_state_attributes(self):
+        """Return the state attributes."""
+        if self.coordinator.data is None:
+            return {}
             
-            self._attributes = {
-                "vehicle_number": bus_info.get("vehicleNumber", "알 수 없음"),
-                "current_stop": bus_info.get("currentBusStopName", "알 수 없음"),
-                "next_stop": bus_info.get("nextBusStopName", "알 수 없음"),
-                "arrival_time": bus_info.get("arrivalTime", "0"),
-                "remain_seat": bus_info.get("remainSeat", "-1"),
-                "direction": bus_info.get("direction", "알 수 없음"),
-                "bus_type": bus_info.get("typeName", "알 수 없음"),
-                "first_time": bus_info.get("first", "알 수 없음"),
-                "last_time": bus_info.get("last", "알 수 없음"),
-                "intervals": bus_info.get("intervals", "알 수 없음"),
-                "updated_at": bus_info.get("collectDateTime", "알 수 없음")
-            }
+        return {
+            "vehicle_number": self.coordinator.data.get("vehicleNumber", "알 수 없음"),
+            "current_stop": self.coordinator.data.get("currentBusStopName", "알 수 없음"),
+            "next_stop": self.coordinator.data.get("nextBusStopName", "알 수 없음"),
+            "arrival_time": self.coordinator.data.get("arrivalTime", "0"),
+            "remain_seat": self.coordinator.data.get("remainSeat", "-1"),
+            "direction": self.coordinator.data.get("direction", "알 수 없음"),
+            "bus_type": self.coordinator.data.get("typeName", "알 수 없음"),
+            "first_time": self.coordinator.data.get("first", "알 수 없음"),
+            "last_time": self.coordinator.data.get("last", "알 수 없음"),
+            "intervals": self.coordinator.data.get("intervals", "알 수 없음"),
+            "updated_at": self.coordinator.data.get("collectDateTime", "알 수 없음")
+        }
 
-        except (aiohttp.ClientError, async_timeout.TimeoutError) as err:
-            self._available = False
-            _LOGGER.error("Error fetching data: %s", err)
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return self.coordinator.last_update_success and self.coordinator.data is not None
