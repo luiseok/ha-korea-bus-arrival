@@ -1,0 +1,6 @@
+{
+    "name": "Korea Bus Arrival",
+    "render_readme": true,
+    "domain": "korea_bus",
+    "iot_class": "cloud_polling"
+}
