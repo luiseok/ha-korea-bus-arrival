@@ -9,16 +9,16 @@ from .const import BASE_URL
 _LOGGER = logging.getLogger(__name__)
 
 class KakaoBusAPI:
-    """Kakao Map API와 통신하는 클래스."""
+    """Class to communicate with Kakao Map API."""
 
-    def __init__(self, session: aiohttp.ClientSession, bus_stop_id: str, bus_number: str):
-        """API 클래스를 초기화합니다."""
+    def __init__(self, session: aiohttp.ClientSession, bus_stop_id: str, bus_numbers: list[str]):
+        """Initialize the API class."""
         self.session = session
         self.bus_stop_id = bus_stop_id
-        self.bus_number = bus_number
+        self.bus_numbers = bus_numbers
 
     async def fetch_buses(self):
-        """버스 정류장에 해당하는 버스 목록을 가져옵니다."""
+        """Retrieve the list of buses for the bus stop."""
         try:
             async with async_timeout.timeout(10):
                 url = f"{BASE_URL}?busStopId={self.bus_stop_id}"
@@ -39,23 +39,28 @@ class KakaoBusAPI:
             raise
 
     async def validate_bus_number(self):
-        """버스 번호가 유효한지 확인합니다."""
+        """Validate the bus numbers."""
         buses_list = await self.fetch_buses()
         if not buses_list:
             return False, "invalid_bus_stop_id"
-        
-        bus_exists = any(bus.get("name") == self.bus_number for bus in buses_list)
-        if not bus_exists:
-            return False, "invalid_bus_number"
-        
+
+        available_bus_numbers = [bus.get("name") for bus in buses_list]
+        invalid_buses = [num for num in self.bus_numbers if num not in available_bus_numbers]
+
+        if invalid_buses:
+            return False, f"invalid_bus_number: {', '.join(invalid_buses)}"
+
         return True, buses_list
 
     async def get_bus_info(self):
-        """특정 버스의 정보를 가져옵니다."""
+        """Retrieve information for a specific bus."""
         buses_list = await self.fetch_buses()
         for bus in buses_list:
             if bus.get("name") == self.bus_number:
                 return bus
         return None
     
-    
+    async def get_all_bus_info(self):
+        """Retrieve all bus information."""
+        buses_list = await self.fetch_buses()
+        return buses_list

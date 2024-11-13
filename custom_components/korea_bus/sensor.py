@@ -1,8 +1,7 @@
 """Support for Korea Bus sensors."""
-from datetime import datetime, timedelta
+from datetime import timedelta
 import logging
 import aiohttp
-import async_timeout
 import asyncio
 
 from homeassistant.components.sensor import SensorEntity
@@ -15,6 +14,8 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
 )
+from homeassistant.const import DEVICE_CLASS_TIMESTAMP
+from homeassistant.util import dt as dt_util
 
 from .const import (
     DOMAIN,
@@ -32,7 +33,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the Korea Bus sensor from config entry."""
+    """Set up the Korea Bus sensor from a config entry."""
     session = async_get_clientsession(hass)
     
     coordinator = BusDataUpdateCoordinator(
@@ -46,13 +47,15 @@ async def async_setup_entry(
         ),
     )
 
-    # 초기 데이터 가져오기
+    # Fetch initial data
     await coordinator.async_config_entry_first_refresh()
 
-    async_add_entities(
-        [KoreaBusSensor(coordinator, entry)],
-        False,
-    )
+    entities = []
+    bus_numbers = entry.data.get(CONF_BUS_NUMBER, [])
+    for bus_number in bus_numbers:
+        entities.append(KoreaBusSensor(coordinator, entry, bus_number))
+
+    async_add_entities(entities, False)
 
 class BusDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to manage fetching bus data."""
@@ -75,16 +78,19 @@ class BusDataUpdateCoordinator(DataUpdateCoordinator):
         )
         self.session = session
         self.bus_stop_id = entry.data[CONF_BUS_STOP_ID]
-        self.bus_number = entry.data[CONF_BUS_NUMBER]
+        self.bus_numbers = entry.data.get(CONF_BUS_NUMBER, [])
 
     async def _async_update_data(self):
         """Fetch data from API."""
         try:
-            api = KakaoBusAPI(self.session, self.bus_stop_id, self.bus_number)
-            bus_info = await api.get_bus_info()
-            if bus_info is None:
-                raise UpdateFailed(f"No bus found with number {self.bus_number}")
-            return bus_info
+            api = KakaoBusAPI(self.session, self.bus_stop_id, self.bus_numbers)
+            buses_info = await api.get_all_bus_info()
+            if not buses_info:
+                raise UpdateFailed("No buses found for the provided bus numbers")
+            
+            # Convert bus information to a dictionary with bus numbers as keys
+            buses_dict = {bus.get("name"): bus for bus in buses_info}
+            return buses_dict
         except asyncio.TimeoutError as error:
             raise UpdateFailed(f"Timeout error fetching data: {error}")
         except aiohttp.ClientError as error:
@@ -95,50 +101,98 @@ class BusDataUpdateCoordinator(DataUpdateCoordinator):
 class KoreaBusSensor(CoordinatorEntity, SensorEntity):
     """Representation of a Korea Bus Sensor."""
 
-    def __init__(self, coordinator, entry):
+    def __init__(self, coordinator, entry, bus_number):
         """Initialize the sensor."""
         super().__init__(coordinator)
         self.entry = entry
-        
+        self.bus_number = bus_number
+
         # Entity ID 생성
-        self._attr_unique_id = f"{entry.data[CONF_BUS_STOP_ID]}_{entry.data[CONF_BUS_NUMBER]}"
+        self._attr_unique_id = f"{entry.data[CONF_BUS_STOP_ID]}_{self.bus_number}"
         
-        # 이름 설정 (설정에서 지정한 이름이 있으면 사용, 없으면 기본 이름 생성)
-        self._attr_name = entry.data.get(CONF_NAME) or f"Bus {entry.data[CONF_BUS_NUMBER]}"
+        # 이름 설정
+        self._attr_name = entry.data.get(CONF_NAME) or f"{self.bus_number}번 버스 도착 정보 ({entry.data[CONF_BUS_STOP_ID]})"
+        
+        self.bus_info = None
 
     @property
     def native_value(self):
-        """Return the state of the sensor."""
-        if self.coordinator.data is None:
+        """Return the state of the sensor as 도착 예정 시간 (타임스탬프)."""
+        if not self.bus_info:
+            _LOGGER.debug("bus_info is None.")
+            return None  # Leave the state empty.
+        
+        arrival_time = self.bus_info.get("arrivalTime", 0)
+        try:
+            arrival_time = int(arrival_time)
+            if arrival_time <= 0:
+                _LOGGER.debug("유효하지 않은 arrival_time: %s", arrival_time)
+                return None
+        except (ValueError, TypeError):
+            _LOGGER.error("arrival_time 형식이 올바르지 않습니다: %s", arrival_time)
             return None
-        arrival_time = self.coordinator.data.get("arrivalTime", 0)
-        if arrival_time == 0:
-            return "알 수 없음"
-        arrival_datetime = datetime.now() + timedelta(seconds=int(arrival_time))
-        return arrival_datetime.strftime("%H:%M")
+        
+        # Use the current time with timezone
+        arrival_datetime = dt_util.now() + timedelta(seconds=arrival_time)
+        return arrival_datetime
+
+    @property
+    def device_class(self):
+        """Return the device class."""
+        return DEVICE_CLASS_TIMESTAMP
 
     @property
     def extra_state_attributes(self):
         """Return the state attributes."""
-        if self.coordinator.data is None:
+        if not self.bus_info:
             return {}
-            
+        
+        arrival_time = self.bus_info.get("arrivalTime", 0)
+        try:
+            arrival_time = int(arrival_time)
+            if arrival_time > 0:
+                arrival_datetime = dt_util.now() + timedelta(seconds=arrival_time)
+            else:
+                arrival_datetime = None
+        except (ValueError, TypeError):
+            arrival_datetime = None
+
         return {
-            "vehicle_number": self.coordinator.data.get("vehicleNumber", "알 수 없음"),
-            "current_stop": self.coordinator.data.get("currentBusStopName", "알 수 없음"),
-            "next_stop": self.coordinator.data.get("nextBusStopName", "알 수 없음"),
-            "arrival_time": self.coordinator.data.get("arrivalTime", "0"),
-            "vehicle_state_message": self.coordinator.data.get("vehicleStateMessage", "알 수 없음"),
-            "remain_seat": self.coordinator.data.get("remainSeat", "-1"),
-            "direction": self.coordinator.data.get("direction", "알 수 없음"),
-            "bus_type": self.coordinator.data.get("typeName", "알 수 없음"),
-            "first_time": self.coordinator.data.get("first", "알 수 없음"),
-            "last_time": self.coordinator.data.get("last", "알 수 없음"),
-            "intervals": self.coordinator.data.get("intervals", "알 수 없음"),
-            "updated_at": self.coordinator.data.get("collectDateTime", "알 수 없음")
+            "vehicle_number": self.bus_info.get("vehicleNumber", "알 수 없음"),
+            "current_stop": self.bus_info.get("currentBusStopName", "알 수 없음"),
+            "next_stop": self.bus_info.get("nextBusStopName", "알 수 없음"),
+            "arrival_time": arrival_time,
+            "arrival_datetime": arrival_datetime.isoformat() if arrival_datetime else "알 수 없음",
+            "vehicle_state_message": self.bus_info.get("vehicleStateMessage", "알 수 없음"),
+            "remain_seat": self.bus_info.get("remainSeat", "-1"),
+            "direction": self.bus_info.get("direction", "알 수 없음"),
+            "bus_type": self.bus_info.get("typeName", "알 수 없음"),
+            "first_time": self.bus_info.get("first", "알 수 없음"),
+            "last_time": self.bus_info.get("last", "알 수 없음"),
+            "intervals": self.bus_info.get("intervals", "알 수 없음"),
+            "updated_at": self.bus_info.get("collectDateTime", "알 수 없음")
         }
 
     @property
     def available(self) -> bool:
         """Return True if entity is available."""
-        return self.coordinator.last_update_success and self.coordinator.data is not None
+        return self.coordinator.last_update_success and self.bus_info is not None
+
+    async def async_added_to_hass(self):
+        """Called when entity is added to hass."""
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            self.coordinator.async_add_listener(self.async_write_ha_state)
+        )
+        # Set initial data
+        self.bus_info = self.coordinator.data.get(self.bus_number)
+
+    @property
+    def unique_id(self):
+        """Unique ID for the sensor."""
+        return self._attr_unique_id
+
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return self._attr_name

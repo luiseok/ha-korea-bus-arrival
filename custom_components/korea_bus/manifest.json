@@ -1,6 +1,6 @@
 {
     "domain": "korea_bus",
-    "name": "Korea Bus Arrival",
+    "name": "버스(대중교통) 도착 정보",
     "version": "0.0.1",
     "documentation": "https://github.com/luiseok/ha-korea-bus-arrival",
     "dependencies": [],

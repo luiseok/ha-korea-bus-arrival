@@ -1,5 +1,5 @@
 {
-    "name": "Korea Bus Arrival",
+    "name": "버스(대중교통) 도착 정보",
     "render_readme": true,
     "domain": "korea_bus",
     "iot_class": "cloud_polling",

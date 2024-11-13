@@ -15,6 +15,8 @@
     "error": {
       "invalid_bus_stop": "잘못된 정류장 ID입니다",
       "invalid_bus_number": "잘못된 버스 번호입니다",
+      "invalid_bus_numbers": "다음 버스 번호가 잘못되었습니다: {invalid_numbers}",
+      "no_valid_bus_numbers": "유효한 버스 번호가 없습니다",
       "cannot_connect": "서비스 연결에 실패했습니다"
     },
     "abort": {
