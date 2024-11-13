@@ -6,3 +6,4 @@ CONF_BUS_NUMBER = "bus_number"
 CONF_NAME = "name"
 
 DEFAULT_SCAN_INTERVAL = 60
+BASE_URL = "https://m.map.kakao.com/actions/busesInBusStopJson"
