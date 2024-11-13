@@ -1,5 +1,5 @@
 """Support for Korea Bus sensors."""
-from datetime import timedelta
+from datetime import datetime, timedelta
 import logging
 import aiohttp
 import async_timeout
@@ -23,11 +23,9 @@ from .const import (
     CONF_NAME,
     DEFAULT_SCAN_INTERVAL,
 )
+from .kakao import KakaoBusAPI
 
 _LOGGER = logging.getLogger(__name__)
-
-# API 엔드포인트
-BASE_URL = "https://m.map.kakao.com/actions/busesInBusStopJson"
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -82,26 +80,11 @@ class BusDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         """Fetch data from API."""
         try:
-            async with async_timeout.timeout(10):
-                url = f"{BASE_URL}?busStopId={self.bus_stop_id}"
-                async with self.session.get(url) as response:
-                    if response.status != 200:
-                        raise UpdateFailed(f"Error communicating with API: {response.status}")
-                    
-                    data = await response.json()
-
-            # 해당하는 버스 찾기
-            bus_info = None
-            for bus in data.get("busesList", []):
-                if bus.get("name") == self.bus_number:
-                    bus_info = bus
-                    break
-
+            api = KakaoBusAPI(self.session, self.bus_stop_id, self.bus_number)
+            bus_info = await api.get_bus_info()
             if bus_info is None:
                 raise UpdateFailed(f"No bus found with number {self.bus_number}")
-
             return bus_info
-
         except asyncio.TimeoutError as error:
             raise UpdateFailed(f"Timeout error fetching data: {error}")
         except aiohttp.ClientError as error:
@@ -128,7 +111,11 @@ class KoreaBusSensor(CoordinatorEntity, SensorEntity):
         """Return the state of the sensor."""
         if self.coordinator.data is None:
             return None
-        return self.coordinator.data.get("vehicleStateMessage", "알 수 없음")
+        arrival_time = self.coordinator.data.get("arrivalTime", 0)
+        if arrival_time == 0:
+            return "알 수 없음"
+        arrival_datetime = datetime.now() + timedelta(seconds=int(arrival_time))
+        return arrival_datetime.strftime("%H:%M")
 
     @property
     def extra_state_attributes(self):
@@ -141,6 +128,7 @@ class KoreaBusSensor(CoordinatorEntity, SensorEntity):
             "current_stop": self.coordinator.data.get("currentBusStopName", "알 수 없음"),
             "next_stop": self.coordinator.data.get("nextBusStopName", "알 수 없음"),
             "arrival_time": self.coordinator.data.get("arrivalTime", "0"),
+            "vehicle_state_message": self.coordinator.data.get("vehicleStateMessage", "알 수 없음"),
             "remain_seat": self.coordinator.data.get("remainSeat", "-1"),
             "direction": self.coordinator.data.get("direction", "알 수 없음"),
             "bus_type": self.coordinator.data.get("typeName", "알 수 없음"),
