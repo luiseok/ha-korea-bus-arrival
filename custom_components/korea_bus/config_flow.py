@@ -6,23 +6,22 @@ from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.const import CONF_NAME
 
-from .const import DOMAIN, CONF_BUS_STOP_ID, CONF_BUS_NUMBER
+from .const import DOMAIN, CONF_BUS_STOP_ID, CONF_BUS_NUMBER, DEFAULT_SCAN_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
+@config_entries.HANDLERS.register(DOMAIN)
 class KoreaBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Korea Bus."""
 
     VERSION = 1
+    CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
 
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
         errors = {}
 
         if user_input is not None:
-            # Validate the bus stop ID and bus number here
-            # You might want to add validation by making an API call
-            
             # Create a unique_id using bus_stop_id and bus_number
             unique_id = f"{user_input[CONF_BUS_STOP_ID]}_{user_input[CONF_BUS_NUMBER]}"
             await self.async_set_unique_id(unique_id)
