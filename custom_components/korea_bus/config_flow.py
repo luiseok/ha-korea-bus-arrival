@@ -2,7 +2,7 @@
 import logging
 import voluptuous as vol
 
-from homeassistant import config_entries
+from homeassistant.config_entries import ConfigFlow, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.const import CONF_NAME
 
@@ -10,19 +10,16 @@ from .const import DOMAIN, CONF_BUS_STOP_ID, CONF_BUS_NUMBER, DEFAULT_SCAN_INTER
 
 _LOGGER = logging.getLogger(__name__)
 
-@config_entries.HANDLERS.register(DOMAIN)
-class KoreaBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class ConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Korea Bus."""
 
     VERSION = 1
-    CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
 
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
         errors = {}
 
         if user_input is not None:
-            # Create a unique_id using bus_stop_id and bus_number
             unique_id = f"{user_input[CONF_BUS_STOP_ID]}_{user_input[CONF_BUS_NUMBER]}"
             await self.async_set_unique_id(unique_id)
             self._abort_if_unique_id_configured()
@@ -50,7 +47,7 @@ class KoreaBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Get the options flow for this handler."""
         return KoreaBusOptionsFlow(config_entry)
 
-class KoreaBusOptionsFlow(config_entries.OptionsFlow):
+class KoreaBusOptionsFlow(OptionsFlow):
     """Handle options."""
 
     def __init__(self, config_entry):

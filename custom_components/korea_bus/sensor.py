@@ -3,6 +3,7 @@ from datetime import timedelta
 import logging
 import aiohttp
 import async_timeout
+import asyncio
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
