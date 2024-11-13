@@ -7,7 +7,7 @@
         "description": "Set up your bus stop information",
         "data": {
           "bus_stop_id": "Bus Stop ID",
-          "bus_number": "Bus Number",
+          "bus_number": "Bus Number (Multiple registration with commas. e.g. 123,456,M789)",
           "name": "Name (Optional)"
         }
       }
@@ -18,7 +18,13 @@
       "cannot_connect": "Failed to connect to the service"
     },
     "abort": {
-      "already_configured": "This bus stop and number combination is already configured"
+      "already_configured": "This bus stop and number combination is already configured",
+      "invalid_bus_stop_id": "Invalid bus stop ID.",
+      "invalid_bus_number": "Invalid bus number.",
+      "api_error": "An error occurred while requesting the API.",
+      "timeout": "The API request timed out.",
+      "client_error": "An API client error occurred.",
+      "unknown_error": "An unknown error occurred."
     }
   },
   "options": {

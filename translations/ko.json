@@ -7,7 +7,7 @@
         "description": "버스 정류장 정보를 설정합니다",
         "data": {
           "bus_stop_id": "정류장 ID",
-          "bus_number": "버스 번호",
+          "bus_number": "버스 번호 (복수 등록시 쉼표로 구분 ex: 123,456,M789)",
           "name": "이름 (선택사항)"
         }
       }
@@ -18,7 +18,13 @@
       "cannot_connect": "서비스 연결에 실패했습니다"
     },
     "abort": {
-      "already_configured": "이미 설정된 정류장과 버스 번호 조합입니다"
+      "already_configured": "이미 설정된 정류장과 버스 번호 조합입니다",
+      "invalid_bus_stop_id": "유효하지 않은 버스 정류장 번호입니다.",
+      "invalid_bus_number": "유효하지 않은 버스 번호입니다.",
+      "api_error": "API 요청 중 오류가 발생했습니다.",
+      "timeout": "API 요청이 시간 내에 완료되지 않았습니다.",
+      "client_error": "API 클라이언트 오류가 발생했습니다.",
+      "unknown_error": "알 수 없는 오류가 발생했습니다."
     }
   },
   "options": {
