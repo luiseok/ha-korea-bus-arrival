@@ -14,6 +14,9 @@
 - Added the `time_left` to the sensor's attributes
 - Added the `last_vehicle` to the sensor's attributes
 
+### Version 1.1.1
+- Fixed the bug that causes the sensor crash when `collect_datetime_str` is unavailable
+
 {% endif %}
 
 ## Configuration
