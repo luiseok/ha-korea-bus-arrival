@@ -107,12 +107,13 @@ class KoreaBusSensor(CoordinatorEntity, SensorEntity):
         self.entry = entry
         self.bus_number = bus_number
 
-        # Entity ID 생성
+        # Generate Entity ID
         self._attr_unique_id = f"{entry.data[CONF_BUS_STOP_ID]}_{self.bus_number}"
         
-        # 이름 설정
+        # Set the name
         self._attr_name = entry.data.get(CONF_NAME) or f"{self.bus_number}번 버스 도착 정보 ({entry.data[CONF_BUS_STOP_ID]})"
         
+        self._state = None
         self.bus_info = None
 
     @property
@@ -125,16 +126,17 @@ class KoreaBusSensor(CoordinatorEntity, SensorEntity):
         arrival_time = self.bus_info.get("arrivalTime", 0)
         try:
             arrival_time = int(arrival_time)
-            if arrival_time <= 0:
+            if arrival_time < 0:
                 _LOGGER.debug("유효하지 않은 arrival_time: %s", arrival_time)
-                return None
+                self._state = None
         except (ValueError, TypeError):
             _LOGGER.error("arrival_time 형식이 올바르지 않습니다: %s", arrival_time)
-            return None
+            self._state = None
         
         # Use the current time with timezone
-        arrival_datetime = dt_util.now() + timedelta(seconds=arrival_time)
-        return arrival_datetime
+        self._state = dt_util.now() + timedelta(seconds=arrival_time)
+        self.async_write_ha_state()
+        return self._state
 
     @property
     def device_class(self):
