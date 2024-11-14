@@ -179,9 +179,9 @@ class KoreaBusSensor(CoordinatorEntity, SensorEntity):
                 arrival_datetime = None
         except (ValueError, TypeError):
             arrival_datetime = None
-
+            
         collect_datetime_str = self.bus_info.get("collectDateTime", "알 수 없음")
-        if collect_datetime_str != "알 수 없음":
+        if collect_datetime_str != "알 수 없음" and collect_datetime_str is not None:
             collect_datetime_str = self.format_collect_datetime(collect_datetime_str)
         
         return {
