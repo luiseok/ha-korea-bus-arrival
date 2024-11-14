@@ -112,7 +112,7 @@ class KoreaBusSensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = f"{entry.data[CONF_BUS_STOP_ID]}_{self.bus_number}"
         
         # Set the name
-        self._attr_name = entry.data.get(CONF_NAME) or f"{self.bus_number}번 버스 도착 정보 ({entry.data[CONF_BUS_STOP_ID]})"
+        self._attr_name = f"{entry.data.get(CONF_NAME, '')} {self.bus_number}번 버스" if entry.data.get(CONF_NAME) else f"{self.bus_number}번 버스 도착 정보 ({entry.data[CONF_BUS_STOP_ID]})"
         
         self._state = None
         self.bus_info = None
