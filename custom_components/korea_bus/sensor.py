@@ -151,10 +151,14 @@ class KoreaBusSensor(CoordinatorEntity, SensorEntity):
             return {}
         
         arrival_time = self.bus_info.get("arrivalTime", 0)
+        time_left = "알 수 없음"
         try:
             arrival_time = int(arrival_time)
             if arrival_time > 0:
                 arrival_datetime = dt_util.now() + timedelta(seconds=arrival_time)
+                minutes = arrival_time // 60
+                seconds = arrival_time % 60
+                time_left = f"{minutes}분 {seconds}초"
             else:
                 arrival_datetime = None
         except (ValueError, TypeError):
@@ -169,6 +173,7 @@ class KoreaBusSensor(CoordinatorEntity, SensorEntity):
             "current_stop": self.bus_info.get("currentBusStopName", "알 수 없음"),
             "next_stop": self.bus_info.get("nextBusStopName", "알 수 없음"),
             "arrival_time": arrival_time,
+            "time_left": time_left,
             "arrival_datetime": arrival_datetime.isoformat() if arrival_datetime else "알 수 없음",
             "vehicle_state_message": self.bus_info.get("vehicleStateMessage", "알 수 없음"),
             "remain_seat": self.bus_info.get("remainSeat", "-1"),
