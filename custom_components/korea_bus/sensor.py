@@ -120,24 +120,37 @@ class KoreaBusSensor(CoordinatorEntity, SensorEntity):
     @property
     def native_value(self):
         """Return the state of the sensor as 도착 예정 시간 (타임스탬프)."""
+        # update bus_info
+        self.bus_info = self.coordinator.data.get(self.bus_number)
+        
         if not self.bus_info:
             _LOGGER.debug("bus_info is None.")
-            return None  # Leave the state empty.
+            return None
         
         arrival_time = self.bus_info.get("arrivalTime", 0)
         try:
             arrival_time = int(arrival_time)
             if arrival_time < 0:
                 _LOGGER.debug("유효하지 않은 arrival_time: %s", arrival_time)
-                self._state = None
+                return None
         except (ValueError, TypeError):
             _LOGGER.error("arrival_time 형식이 올바르지 않습니다: %s", arrival_time)
-            self._state = None
+            return None
         
-        # Use the current time with timezone
         self._state = dt_util.now() + timedelta(seconds=arrival_time)
-        self.async_write_ha_state()
         return self._state
+
+    async def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        old_info = self.bus_info
+        self.bus_info = self.coordinator.data.get(self.bus_number)
+        _LOGGER.debug(
+            "버스 정보 업데이트 - 버스번호: %s, 이전: %s, 새로운: %s",
+            self.bus_number,
+            old_info,
+            self.bus_info
+        )
+        self.async_write_ha_state()
 
     @property
     def device_class(self):
@@ -147,6 +160,9 @@ class KoreaBusSensor(CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self):
         """Return the state attributes."""
+        if not self.bus_info:
+            self.bus_info = self.coordinator.data.get(self.bus_number)
+            
         if not self.bus_info:
             return {}
         
