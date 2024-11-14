@@ -1,5 +1,5 @@
 """Support for Korea Bus sensors."""
-from datetime import timedelta
+from datetime import timedelta, datetime
 import logging
 import aiohttp
 import asyncio
@@ -86,7 +86,8 @@ class BusDataUpdateCoordinator(DataUpdateCoordinator):
             api = KakaoBusAPI(self.session, self.bus_stop_id, self.bus_numbers)
             buses_info = await api.get_all_bus_info()
             if not buses_info:
-                raise UpdateFailed("No buses found for the provided bus numbers")
+                _LOGGER.debug("버스 정보가 없습니다.")
+                return {}  # Avoid returning an empty dictionary to avoid UpdateFailed
             
             # Convert bus information to a dictionary with bus numbers as keys
             buses_dict = {bus.get("name"): bus for bus in buses_info}
@@ -159,6 +160,10 @@ class KoreaBusSensor(CoordinatorEntity, SensorEntity):
         except (ValueError, TypeError):
             arrival_datetime = None
 
+        collect_datetime_str = self.bus_info.get("collectDateTime", "알 수 없음")
+        if collect_datetime_str != "알 수 없음":
+            collect_datetime_str = self.format_collect_datetime(collect_datetime_str)
+        
         return {
             "vehicle_number": self.bus_info.get("vehicleNumber", "알 수 없음"),
             "current_stop": self.bus_info.get("currentBusStopName", "알 수 없음"),
@@ -172,7 +177,7 @@ class KoreaBusSensor(CoordinatorEntity, SensorEntity):
             "first_time": self.bus_info.get("first", "알 수 없음"),
             "last_time": self.bus_info.get("last", "알 수 없음"),
             "intervals": self.bus_info.get("intervals", "알 수 없음"),
-            "updated_at": self.bus_info.get("collectDateTime", "알 수 없음"),
+            "updated_at": collect_datetime_str,
             "last_vehicle": self.bus_info.get("lastVehicle", "알 수 없음"),
         }
 
@@ -199,3 +204,15 @@ class KoreaBusSensor(CoordinatorEntity, SensorEntity):
     def name(self):
         """Return the name of the sensor."""
         return self._attr_name
+
+    def format_collect_datetime(self, collect_datetime_str):
+        """Format the collectDateTime string to a datetime object and then to a string."""
+        try:
+            # Convert the string to a datetime object (format: YYYYMMDDHHMMSS)
+            collect_datetime = datetime.strptime(collect_datetime_str, "%Y%m%d%H%M%S")
+            # Format to the desired format (e.g., "2024-11-14 11:27:03")
+            formatted_datetime = collect_datetime.strftime("%Y-%m-%d %H:%M:%S")
+            return formatted_datetime
+        except ValueError:
+            _LOGGER.error(f"collectDateTime 형식이 유효하지 않습니다: {collect_datetime_str}")
+            return "알 수 없음"
