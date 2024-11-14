@@ -3,6 +3,17 @@
 
 ### Version 1.0.0
 - Initial release
+
+### Version 1.0.1
+- Applied translation json files
+
+### Version 1.1.0
+- Fixed the bug that the attributes were not updated
+- Enhanced the sensor to get the first car schedule as intended
+- Fixed the bug that the sensor's name gets duplicated when the user registers multiple bus numbers with name
+- Added the `time_left` to the sensor's attributes
+- Added the `last_vehicle` to the sensor's attributes
+
 {% endif %}
 
 ## Configuration
