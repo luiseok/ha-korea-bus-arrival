@@ -130,7 +130,7 @@ class KoreaBusSensor(CoordinatorEntity, SensorEntity):
         arrival_time = self.bus_info.get("arrivalTime", 0)
         try:
             arrival_time = int(arrival_time)
-            if arrival_time < 0:
+            if arrival_time <= 0:
                 _LOGGER.debug("유효하지 않은 arrival_time: %s", arrival_time)
                 return None
         except (ValueError, TypeError):
@@ -200,6 +200,7 @@ class KoreaBusSensor(CoordinatorEntity, SensorEntity):
             "intervals": self.bus_info.get("intervals", "알 수 없음"),
             "updated_at": collect_datetime_str if collect_datetime_str is not None else "알 수 없음",
             "last_vehicle": self.bus_info.get("lastVehicle", "알 수 없음"),
+            "bus_stop_count": self.bus_info.get("busStopCount", "알 수 없음")
         }
 
     @property
