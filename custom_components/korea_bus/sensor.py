@@ -130,7 +130,7 @@ class KoreaBusSensor(CoordinatorEntity, SensorEntity):
         arrival_time = self.bus_info.get("arrivalTime", 0)
         try:
             arrival_time = int(arrival_time)
-            if arrival_time < 0:
+            if arrival_time <= 0:
                 _LOGGER.debug("유효하지 않은 arrival_time: %s", arrival_time)
                 return None
         except (ValueError, TypeError):
