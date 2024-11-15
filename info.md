@@ -17,6 +17,10 @@
 ### Version 1.1.1
 - Fixed the bug that causes the sensor crash when `collect_datetime_str` is unavailable
 
+### Version 1.1.2
+- Added the `bus_stop_count` to the sensor's attributes
+- Fixed the bug that causes the sensor to be always "now" when the bus arrival time is 0
+
 {% endif %}
 
 ## Configuration
