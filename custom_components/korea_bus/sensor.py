@@ -4,9 +4,9 @@ import logging
 import aiohttp
 import asyncio
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorEntity, SensorDeviceClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
@@ -14,19 +14,19 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
 )
-from homeassistant.const import DEVICE_CLASS_TIMESTAMP
+from homeassistant.const import CONF_SCAN_INTERVAL
 from homeassistant.util import dt as dt_util
 
 from .const import (
     DOMAIN,
     CONF_BUS_STOP_ID,
     CONF_BUS_NUMBER,
-    CONF_NAME,
     DEFAULT_SCAN_INTERVAL,
 )
 from .kakao import KakaoBusAPI
 
 _LOGGER = logging.getLogger(__name__)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -41,9 +41,9 @@ async def async_setup_entry(
         session,
         entry,
         _LOGGER,
-        name="bus_sensor",
+        name=DOMAIN,
         update_interval=timedelta(
-            seconds=entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
+            seconds=entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         ),
     )
 
@@ -55,7 +55,8 @@ async def async_setup_entry(
     for bus_number in bus_numbers:
         entities.append(KoreaBusSensor(coordinator, entry, bus_number))
 
-    async_add_entities(entities, False)
+    async_add_entities(entities)
+
 
 class BusDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to manage fetching bus data."""
@@ -99,6 +100,7 @@ class BusDataUpdateCoordinator(DataUpdateCoordinator):
         except Exception as error:
             raise UpdateFailed(f"Unexpected error: {error}")
 
+
 class KoreaBusSensor(CoordinatorEntity, SensorEntity):
     """Representation of a Korea Bus Sensor."""
 
@@ -112,7 +114,7 @@ class KoreaBusSensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = f"{entry.data[CONF_BUS_STOP_ID]}_{self.bus_number}"
         
         # Set the name
-        self._attr_name = f"{entry.data.get(CONF_NAME, '')} {self.bus_number}번 버스" if entry.data.get(CONF_NAME) else f"{self.bus_number}번 버스 도착 정보 ({entry.data[CONF_BUS_STOP_ID]})"
+        self._attr_name = f"{self.bus_number}번 버스 도착 정보 ({entry.data[CONF_BUS_STOP_ID]})"
         
         self._state = None
         self.bus_info = None
@@ -139,8 +141,9 @@ class KoreaBusSensor(CoordinatorEntity, SensorEntity):
         
         self._state = dt_util.now() + timedelta(seconds=arrival_time)
         return self._state
-
-    async def _handle_coordinator_update(self) -> None:
+    
+    @callback
+    def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         old_info = self.bus_info
         self.bus_info = self.coordinator.data.get(self.bus_number)
@@ -155,7 +158,7 @@ class KoreaBusSensor(CoordinatorEntity, SensorEntity):
     @property
     def device_class(self):
         """Return the device class."""
-        return DEVICE_CLASS_TIMESTAMP
+        return SensorDeviceClass.TIMESTAMP
 
     @property
     def extra_state_attributes(self):

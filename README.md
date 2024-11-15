@@ -20,11 +20,21 @@ Home Assistant integration for Korean bus arrival information.
 2. Click "Add Integration"
 3. Search for "버스(대중교통) 도착 정보"
 4. Enter your bus stop ID and bus number
-    1. Bus stop ID: 버스 정류장 ID (You can find it in the URL of the bus stop page on the [Kakao Map's bus stop search page](https://m.map.kakao.com/actions/searchView).)
-    2. Bus number: 버스 번호 (쉼표로 구분)
-    3. Name: 버스 정류장 이름
+    1. Bus Stop Name: 버스정류장 이름
+    2. Bus Stop: 등록을 원하는 버스정류장 선택
+    3. Bus Number: 버스 번호 선택
 
 ## Options
 
 You can configure the following options:
 - Update interval (default: 60 seconds)
+
+## Debugging
+
+If debugging is necessary, please add the code below to configuration.yaml
+```yaml
+logger:
+  default: info
+  logs:
+    custom_components.korea_bus: debug
+```
