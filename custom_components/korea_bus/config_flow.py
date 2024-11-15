@@ -22,7 +22,8 @@ from .const import (
     CONF_BUS_NUMBER,
     DEFAULT_SCAN_INTERVAL,
     STATION_URL,
-    SEARCH_URL
+    SEARCH_URL,
+    BASE_HEADER
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -37,11 +38,8 @@ class KoreaBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def fetch_bus_stop_list(self, session: aiohttp.ClientSession, bus_stop_name: str) -> dict[str, dict]:
         """Fetch the list of bus stops."""
         url = f"{SEARCH_URL}?q={urllib.parse.quote(bus_stop_name)}&lvl=2#!/all/list/bus"
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36"
-        }
 
-        async with session.get(url, headers=headers, timeout=10) as response:
+        async with session.get(url, headers=BASE_HEADER, timeout=10) as response:
             if response.status != 200:
                 _LOGGER.error("Fetching bus stop list failed with status code: %s", response.status)
                 return 
@@ -107,13 +105,17 @@ class KoreaBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
-            bus_stop_name = user_input.get(CONF_BUS_STOP_NAME)
+            bus_stop_name = user_input[CONF_BUS_STOP_NAME]
 
             try:
                 self._bus_data[CONF_BUS_STOP] = await self.fetch_bus_stop_list(
                     async_create_clientsession(self.hass), bus_stop_name
                 )
-                return await self.async_step_select_stop()
+                if not self._bus_data[CONF_BUS_STOP]:
+                    errors["base"] = "no_bus_stop"
+                else:
+                    return await self.async_step_select_stop()
+
             except asyncio.TimeoutError as e:
                 _LOGGER.error(e)
                 errors["base"] = "timeout_error"

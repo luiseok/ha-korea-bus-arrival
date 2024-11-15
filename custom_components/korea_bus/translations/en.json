@@ -1,41 +1,42 @@
 {
-  "config": {
-      "title": "Bus Arrival Information",
-      "step": {
-          "user": {
-              "description": "Please enter the bus stop name.",
-              "data": {
-                  "bus_stop_name": "Bus Stop Name"
-              }
-          },
-          "select_stop": {
-              "description": "Please select your preferred bus stop.",
-              "data": {
-                  "bus_stop": "Bus Stop"
-              }
-          },
-          "select_number": {
-              "description": "Please select your preferred bus number.",
-              "data": {
-                  "bus_number": "Bus Number"
-              }
-          }
-      },
-      "error": {
-          "timeout_error": "The request timed out.",
-          "client_error": "There was a problem processing the request.",
-          "unknown_error": "An unknown error occurred."
-      },
-      "abort": {}
-  },
-  "options": {
-      "step": {
-          "init": {
-              "title": "Bus Arrival Information Options",
-              "data": {
-                  "scan_interval": "Update Interval (seconds)"
-              }
-          }
-      }
-  }
+    "config": {
+        "title": "Bus Arrival Information",
+        "step": {
+            "user": {
+                "description": "Please enter the bus stop name.",
+                "data": {
+                    "bus_stop_name": "Bus Stop Name"
+                }
+            },
+            "select_stop": {
+                "description": "Please select your preferred bus stop.",
+                "data": {
+                    "bus_stop": "Bus Stop"
+                }
+            },
+            "select_number": {
+                "description": "Please select your preferred bus number.",
+                "data": {
+                    "bus_number": "Bus Number"
+                }
+            }
+        },
+        "error": {
+            "timeout_error": "The request timed out.",
+            "client_error": "There was a problem processing the request.",
+            "no_bus_stop": "No matching bus stop found.",
+            "unknown_error": "An unknown error occurred."
+        },
+        "abort": {}
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Bus Arrival Information Options",
+                "data": {
+                    "scan_interval": "Update Interval (seconds)"
+                }
+            }
+        }
+    }
 }

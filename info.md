@@ -26,6 +26,9 @@
 - DEVICE_CLASS_TIMESTAMP is deprecated, so change it to SensorDeviceClass.TIMESTAMP
 - Changes to bus registration config flow. See release notes for details
 
+### Version 1.1.4
+- Error handling when bus stop is not available
+
 {% endif %}
 
 ## Configuration
