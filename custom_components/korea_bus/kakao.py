@@ -8,6 +8,7 @@ from .const import BASE_URL
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class KakaoBusAPI:
     """Class to communicate with Kakao Map API."""
 
