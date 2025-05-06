@@ -27,6 +27,9 @@
 - Changes to bus registration config flow. See release notes for details
 - Error handling when bus stop is not available
 
+### Version 1.3.0
+- Code refactoring
+- Add the next bus information as a new entity
 
 {% endif %}
 
