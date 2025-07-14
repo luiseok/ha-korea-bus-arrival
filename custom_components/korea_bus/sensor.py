@@ -89,7 +89,10 @@ class BusDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         """Fetch data from API."""
         try:
-            api = KakaoBusAPI(self.session, self.bus_stop_id, self.bus_numbers)
+            custom_headers = {
+                "X-Requested-With": "XMLHttpRequest"
+            }
+            api = KakaoBusAPI(self.session, self.bus_stop_id, self.bus_numbers, custom_headers)
             buses_info = await api.get_all_bus_info()
             if not buses_info:
                 _LOGGER.debug("버스 정보가 없습니다.")
