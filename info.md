@@ -34,6 +34,9 @@
 ### Version 1.3.1
 - Bypass 403 Forbidden error
 
+### Version 1.3.2
+- Add the missing headers to the request
+
 {% endif %}
 
 ## Configuration
