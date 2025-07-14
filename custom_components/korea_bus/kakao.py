@@ -4,7 +4,7 @@ import async_timeout
 import asyncio
 import logging
 
-from .const import BASE_URL
+from .const import BASE_HEADER, BASE_URL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,17 +25,11 @@ class KakaoBusAPI:
             async with async_timeout.timeout(10):
                 url = f"{BASE_URL}?busStopId={self.bus_stop_id}"
                 default_headers = {
-                    "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
-                    "Accept": "application/json, text/javascript, */*; q=0.01",
-                    "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
-                    "Accept-Encoding": "gzip, deflate, br",
-                    "Cache-Control": "no-cache",
-                    "Connection": "keep-alive",
                     "Referer": f"{BASE_URL}?busStopId={self.bus_stop_id}"
                 }
                 # Merge default headers with custom headers (custom headers take precedence)
-                headers = {**default_headers, **self.custom_headers}
-                async with self.session.get(url, headers=default_headers) as response:
+                headers = {**default_headers, **self.custom_headers, **BASE_HEADER}
+                async with self.session.get(url, headers=headers) as response:
                     if response.status != 200:
                         _LOGGER.error("API 응답 실패: %s", response.status)
                         raise Exception(f"API 응답 실패: {response.status}")

@@ -78,7 +78,7 @@ class KoreaBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Fetch the list of bus numbers."""
         url = f"{STATION_URL}?busStopId={bus_stop_id}"
 
-        async with session.get(url, timeout=10) as response:
+        async with session.get(url, timeout=10, headers=BASE_HEADER) as response:
             if response.status != 200:
                 _LOGGER.error("Fetching bus number list failed with status code: %s", response.status)
                 return 
