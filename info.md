@@ -31,6 +31,9 @@
 - Code refactoring
 - Add the next bus information as a new entity
 
+### Version 1.3.1
+- Bypass 403 Forbidden error
+
 {% endif %}
 
 ## Configuration
