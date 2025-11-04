@@ -21,6 +21,7 @@ from .const import (
     CONF_BUS_STOP_ID,
     CONF_BUS_NUMBER,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_TIMEOUT,
     STATION_URL,
     SEARCH_URL,
     BASE_HEADER
@@ -39,10 +40,10 @@ class KoreaBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Fetch the list of bus stops."""
         url = f"{SEARCH_URL}?q={urllib.parse.quote(bus_stop_name)}&lvl=2#!/all/list/bus"
 
-        async with session.get(url, headers=BASE_HEADER, timeout=10) as response:
+        async with session.get(url, headers=BASE_HEADER, timeout=DEFAULT_TIMEOUT) as response:
             if response.status != 200:
                 _LOGGER.error("Fetching bus stop list failed with status code: %s", response.status)
-                return 
+                return {} 
             
             soup = BeautifulSoup(await response.text(), "html.parser")
             bus_stops = soup.find_all("li", class_="search_item")
@@ -78,10 +79,10 @@ class KoreaBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Fetch the list of bus numbers."""
         url = f"{STATION_URL}?busStopId={bus_stop_id}"
 
-        async with session.get(url, timeout=10, headers=BASE_HEADER) as response:
+        async with session.get(url, timeout=DEFAULT_TIMEOUT, headers=BASE_HEADER) as response:
             if response.status != 200:
                 _LOGGER.error("Fetching bus number list failed with status code: %s", response.status)
-                return 
+                return [] 
             
             soup = BeautifulSoup(await response.text(), "html.parser")
             bus_items = soup.find_all("li", {"data-id": True})

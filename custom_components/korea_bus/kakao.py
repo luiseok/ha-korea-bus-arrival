@@ -1,10 +1,9 @@
 """Kakao Map API 연동을 위한 클래스."""
 import aiohttp
-import async_timeout
 import asyncio
 import logging
 
-from .const import BASE_HEADER, BASE_URL
+from .const import BASE_HEADER, BASE_URL, DEFAULT_TIMEOUT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,7 +21,7 @@ class KakaoBusAPI:
     async def fetch_buses(self):
         """Retrieve the list of buses for the bus stop."""
         try:
-            async with async_timeout.timeout(10):
+            async with asyncio.timeout(DEFAULT_TIMEOUT):
                 url = f"{BASE_URL}?busStopId={self.bus_stop_id}"
                 default_headers = {
                     "Referer": f"{BASE_URL}?busStopId={self.bus_stop_id}"

@@ -7,9 +7,17 @@ CONF_BUS_STOP = "bus_stop"
 CONF_BUS_NUMBER = "bus_number"
 
 DEFAULT_SCAN_INTERVAL = 60
+DEFAULT_TIMEOUT = 10
+
+# API URLs
 BASE_URL = "https://m.map.kakao.com/actions/busesInBusStopJson"
 SEARCH_URL = "https://m.map.kakao.com/actions/searchView"
 STATION_URL = "https://m.map.kakao.com/actions/busStationInfo"
+
+# Default values for unknown data
+UNKNOWN_VALUE = "알 수 없음"
+NO_INFO_VALUE = "정보 없음"
+DEFAULT_REMAIN_SEAT = "-1"
 
 BASE_HEADER = {
     "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",

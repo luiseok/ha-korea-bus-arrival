@@ -22,6 +22,9 @@ from .const import (
     CONF_BUS_STOP_ID,
     CONF_BUS_NUMBER,
     DEFAULT_SCAN_INTERVAL,
+    UNKNOWN_VALUE,
+    NO_INFO_VALUE,
+    DEFAULT_REMAIN_SEAT,
 )
 from .kakao import KakaoBusAPI
 
@@ -149,7 +152,7 @@ class KoreaBusBaseSensor(CoordinatorEntity, SensorEntity):
             return collect_datetime.strftime("%Y-%m-%d %H:%M:%S")
         except ValueError:
             _LOGGER.error(f"collectDateTime 형식이 유효하지 않습니다: {collect_datetime_str}")
-            return "알 수 없음"
+            return UNKNOWN_VALUE
 
 
 class KoreaBusSensor(KoreaBusBaseSensor):
@@ -200,7 +203,7 @@ class KoreaBusSensor(KoreaBusBaseSensor):
         if not bus_info:
             return {}
         arrival_time = bus_info.get(self.ATTR_MAP["arrival_time"], 0)
-        time_left = "알 수 없음"
+        time_left = UNKNOWN_VALUE
         arrival_datetime = None
         try:
             arrival_time = int(arrival_time)
@@ -212,26 +215,26 @@ class KoreaBusSensor(KoreaBusBaseSensor):
         except (ValueError, TypeError):
             pass
         collect_datetime_str = bus_info.get(self.ATTR_MAP["updated_at"], None)
-        formatted_collect_dt = "알 수 없음"
+        formatted_collect_dt = UNKNOWN_VALUE
         if collect_datetime_str:
             formatted_collect_dt = self.format_collect_datetime(collect_datetime_str)
         attrs = {
             "arrival_time": arrival_time,
             "time_left": time_left,
-            "arrival_datetime": arrival_datetime.isoformat() if arrival_datetime else "알 수 없음",
-            "vehicle_number": bus_info.get(self.ATTR_MAP["vehicle_number"], "알 수 없음"),
-            "current_stop": bus_info.get(self.ATTR_MAP["current_stop"], "알 수 없음"),
-            "vehicle_state_message": bus_info.get(self.ATTR_MAP["vehicle_state_message"], "알 수 없음"),
-            "remain_seat": bus_info.get(self.ATTR_MAP["remain_seat"], "-1"),
+            "arrival_datetime": arrival_datetime.isoformat() if arrival_datetime else UNKNOWN_VALUE,
+            "vehicle_number": bus_info.get(self.ATTR_MAP["vehicle_number"], UNKNOWN_VALUE),
+            "current_stop": bus_info.get(self.ATTR_MAP["current_stop"], UNKNOWN_VALUE),
+            "vehicle_state_message": bus_info.get(self.ATTR_MAP["vehicle_state_message"], UNKNOWN_VALUE),
+            "remain_seat": bus_info.get(self.ATTR_MAP["remain_seat"], DEFAULT_REMAIN_SEAT),
             "updated_at": formatted_collect_dt,
-            "last_vehicle": bus_info.get(self.ATTR_MAP["last_vehicle"], "알 수 없음"),
-            "bus_stop_count": bus_info.get(self.ATTR_MAP["bus_stop_count"], "알 수 없음"),
-            "next_stop": bus_info.get(self.ATTR_MAP["next_stop"], "알 수 없음"),
-            "direction": bus_info.get(self.ATTR_MAP["direction"], "알 수 없음"),
-            "bus_type": bus_info.get(self.ATTR_MAP["bus_type"], "알 수 없음"),
-            "first_time": bus_info.get(self.ATTR_MAP["first_time"], "알 수 없음"),
-            "last_time": bus_info.get(self.ATTR_MAP["last_time"], "알 수 없음"),
-            "intervals": bus_info.get(self.ATTR_MAP["intervals"], "알 수 없음"),
+            "last_vehicle": bus_info.get(self.ATTR_MAP["last_vehicle"], UNKNOWN_VALUE),
+            "bus_stop_count": bus_info.get(self.ATTR_MAP["bus_stop_count"], UNKNOWN_VALUE),
+            "next_stop": bus_info.get(self.ATTR_MAP["next_stop"], UNKNOWN_VALUE),
+            "direction": bus_info.get(self.ATTR_MAP["direction"], UNKNOWN_VALUE),
+            "bus_type": bus_info.get(self.ATTR_MAP["bus_type"], UNKNOWN_VALUE),
+            "first_time": bus_info.get(self.ATTR_MAP["first_time"], UNKNOWN_VALUE),
+            "last_time": bus_info.get(self.ATTR_MAP["last_time"], UNKNOWN_VALUE),
+            "intervals": bus_info.get(self.ATTR_MAP["intervals"], UNKNOWN_VALUE),
         }
         return attrs
 
@@ -290,7 +293,7 @@ class KoreaBusNextSensor(KoreaBusBaseSensor):
         if not bus_info:
             return {}
         arrival_time = bus_info.get(self.ATTR_MAP["arrival_time"], 0)
-        time_left = "알 수 없음"
+        time_left = UNKNOWN_VALUE
         arrival_datetime = None
         try:
             arrival_time = int(arrival_time)
@@ -302,23 +305,23 @@ class KoreaBusNextSensor(KoreaBusBaseSensor):
         except (ValueError, TypeError):
             pass
         collect_datetime_str = bus_info.get(self.ATTR_MAP["updated_at"], None)
-        formatted_collect_dt = "알 수 없음"
+        formatted_collect_dt = UNKNOWN_VALUE
         if collect_datetime_str:
             formatted_collect_dt = self.format_collect_datetime(collect_datetime_str)
         attrs = {
             "arrival_time": arrival_time,
             "time_left": time_left,
-            "arrival_datetime": arrival_datetime.isoformat() if arrival_datetime else "알 수 없음",
-            "vehicle_number": bus_info.get(self.ATTR_MAP["vehicle_number"], "알 수 없음"),
-            "current_stop": bus_info.get(self.ATTR_MAP["current_stop"], "알 수 없음"),
-            "vehicle_state_message": bus_info.get(self.ATTR_MAP["vehicle_state_message"], "알 수 없음"),
-            "remain_seat": bus_info.get(self.ATTR_MAP["remain_seat"], "-1"),
+            "arrival_datetime": arrival_datetime.isoformat() if arrival_datetime else UNKNOWN_VALUE,
+            "vehicle_number": bus_info.get(self.ATTR_MAP["vehicle_number"], UNKNOWN_VALUE),
+            "current_stop": bus_info.get(self.ATTR_MAP["current_stop"], UNKNOWN_VALUE),
+            "vehicle_state_message": bus_info.get(self.ATTR_MAP["vehicle_state_message"], UNKNOWN_VALUE),
+            "remain_seat": bus_info.get(self.ATTR_MAP["remain_seat"], DEFAULT_REMAIN_SEAT),
             "updated_at": formatted_collect_dt,
-            "last_vehicle": bus_info.get(self.ATTR_MAP["last_vehicle"], "알 수 없음"),
-            "bus_stop_count": bus_info.get(self.ATTR_MAP["bus_stop_count"], "알 수 없음"),
+            "last_vehicle": bus_info.get(self.ATTR_MAP["last_vehicle"], UNKNOWN_VALUE),
+            "bus_stop_count": bus_info.get(self.ATTR_MAP["bus_stop_count"], UNKNOWN_VALUE),
         }
         if arrival_time <= 0:
-            attrs["vehicle_state_message"] = bus_info.get(self.ATTR_MAP["vehicle_state_message"], "정보 없음")
+            attrs["vehicle_state_message"] = bus_info.get(self.ATTR_MAP["vehicle_state_message"], NO_INFO_VALUE)
         return attrs
 
     @property
