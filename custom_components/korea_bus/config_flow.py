@@ -38,13 +38,20 @@ class KoreaBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def fetch_bus_stop_list(self, session: aiohttp.ClientSession, bus_stop_name: str) -> dict[str, dict]:
         """Fetch the list of bus stops."""
+        _LOGGER.debug("Searching for bus stops with name: '%s'", bus_stop_name)
+
         url = f"{SEARCH_URL}?q={urllib.parse.quote(bus_stop_name)}&lvl=2#!/all/list/bus"
 
         async with session.get(url, headers=BASE_HEADER, timeout=DEFAULT_TIMEOUT) as response:
             if response.status != 200:
-                _LOGGER.error("Fetching bus stop list failed with status code: %s", response.status)
-                return {} 
-            
+                _LOGGER.error(
+                    "Failed to fetch bus stop list for query '%s': HTTP status %s, URL=%s",
+                    bus_stop_name,
+                    response.status,
+                    url,
+                )
+                return {}
+
             soup = BeautifulSoup(await response.text(), "html.parser")
             bus_stops = soup.find_all("li", class_="search_item")
 
@@ -73,32 +80,65 @@ class KoreaBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         "bus_types": bus_types,
                         "title": f"{data_title}({stop_number}) - {direction}"
                     }
+
+            _LOGGER.info(
+                "Found %d bus stops for query '%s'",
+                len(results),
+                bus_stop_name,
+            )
+            if results:
+                _LOGGER.debug(
+                    "Bus stop IDs found: %s",
+                    list(results.keys()),
+                )
+
             return results
     
     async def fetch_bus_number_list(self, session: aiohttp.ClientSession, bus_stop_id: str) -> list[dict]:
         """Fetch the list of bus numbers."""
+        _LOGGER.debug("Fetching bus numbers for stop_id=%s", bus_stop_id)
+
         url = f"{STATION_URL}?busStopId={bus_stop_id}"
 
         async with session.get(url, timeout=DEFAULT_TIMEOUT, headers=BASE_HEADER) as response:
             if response.status != 200:
-                _LOGGER.error("Fetching bus number list failed with status code: %s", response.status)
-                return [] 
-            
+                _LOGGER.error(
+                    "Failed to fetch bus numbers for stop_id=%s: HTTP status %s, URL=%s",
+                    bus_stop_id,
+                    response.status,
+                    url,
+                )
+                return []
+
             soup = BeautifulSoup(await response.text(), "html.parser")
             bus_items = soup.find_all("li", {"data-id": True})
-    
+
             buses = []
             for bus in bus_items:
                 bus_number = bus.find("strong", {"class": "tit_g"})
                 if bus_number:
                     bus_type_elem = bus.find("span", {'class': re.compile("bus_type.*")})
                     bus_type = bus_type_elem.text if bus_type_elem else "Unknown"
-            
+
                     bus_info = {
                         "number": bus_number.text.strip(),
                         "type": bus_type.strip()
                     }
                     buses.append(bus_info)
+
+            _LOGGER.info(
+                "Found %d buses at stop_id=%s",
+                len(buses),
+                bus_stop_id,
+            )
+            if buses:
+                bus_numbers = [b["number"] for b in buses]
+                _LOGGER.debug(
+                    "Bus numbers at stop_id=%s: %s",
+                    bus_stop_id,
+                    bus_numbers,
+                )
+
             return buses
     
     async def async_step_user(self, user_input=None):
@@ -107,24 +147,45 @@ class KoreaBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             bus_stop_name = user_input[CONF_BUS_STOP_NAME]
+            _LOGGER.info("User searching for bus stop: '%s'", bus_stop_name)
 
             try:
                 self._bus_data[CONF_BUS_STOP] = await self.fetch_bus_stop_list(
                     async_create_clientsession(self.hass), bus_stop_name
                 )
                 if not self._bus_data[CONF_BUS_STOP]:
+                    _LOGGER.warning("No bus stops found for query: '%s'", bus_stop_name)
                     errors["base"] = "no_bus_stop"
                 else:
+                    _LOGGER.info(
+                        "Found %d bus stops for '%s', proceeding to selection",
+                        len(self._bus_data[CONF_BUS_STOP]),
+                        bus_stop_name,
+                    )
                     return await self.async_step_select_stop()
 
             except asyncio.TimeoutError as e:
-                _LOGGER.error(e)
+                _LOGGER.error(
+                    "Timeout while searching for bus stop '%s': %s",
+                    bus_stop_name,
+                    e,
+                )
                 errors["base"] = "timeout_error"
             except aiohttp.ClientError as e:
-                _LOGGER.error(e)
+                _LOGGER.error(
+                    "Client error while searching for bus stop '%s': %s",
+                    bus_stop_name,
+                    e,
+                    exc_info=True,
+                )
                 errors["base"] = "client_error"
             except Exception as e:
-                _LOGGER.error("Unexpected error during initial step: %s", e)
+                _LOGGER.error(
+                    "Unexpected error during bus stop search for '%s': %s",
+                    bus_stop_name,
+                    e,
+                    exc_info=True,
+                )
                 errors["base"] = "unknown_error"
 
         return self.async_show_form(
@@ -138,24 +199,44 @@ class KoreaBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_select_stop(self, user_input=None):
         """Handle the bus stop selection step."""
         errors = {}
-        
+
         if user_input is not None:
             self._bus_data[CONF_BUS_STOP_ID] = user_input[CONF_BUS_STOP]
+            _LOGGER.info("User selected bus stop: %s", self._bus_data[CONF_BUS_STOP_ID])
 
             try:
                 self._bus_data[CONF_BUS_NUMBER] = await self.fetch_bus_number_list(
                     async_create_clientsession(self.hass), self._bus_data[CONF_BUS_STOP_ID]
                 )
+                _LOGGER.info(
+                    "Found %d buses at stop_id=%s, proceeding to bus number selection",
+                    len(self._bus_data[CONF_BUS_NUMBER]),
+                    self._bus_data[CONF_BUS_STOP_ID],
+                )
                 return await self.async_step_select_number()
 
             except asyncio.TimeoutError as e:
-                _LOGGER.error(e)
+                _LOGGER.error(
+                    "Timeout while fetching buses for stop_id=%s: %s",
+                    self._bus_data[CONF_BUS_STOP_ID],
+                    e,
+                )
                 errors["base"] = "timeout_error"
             except aiohttp.ClientError as e:
-                _LOGGER.error(e)
+                _LOGGER.error(
+                    "Client error while fetching buses for stop_id=%s: %s",
+                    self._bus_data[CONF_BUS_STOP_ID],
+                    e,
+                    exc_info=True,
+                )
                 errors["base"] = "client_error"
             except Exception as e:
-                _LOGGER.error("Unexpected error during initial step: %s", e)
+                _LOGGER.error(
+                    "Unexpected error while fetching buses for stop_id=%s: %s",
+                    self._bus_data[CONF_BUS_STOP_ID],
+                    e,
+                    exc_info=True,
+                )
                 errors["base"] = "unknown_error"
 
         return self.async_show_form(
@@ -173,10 +254,21 @@ class KoreaBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             self._bus_data[CONF_BUS_NUMBER] = user_input[CONF_BUS_NUMBER]
+            _LOGGER.info(
+                "User selected buses %s at stop_id=%s",
+                self._bus_data[CONF_BUS_NUMBER],
+                self._bus_data[CONF_BUS_STOP_ID],
+            )
 
             unique_id = f"{self._bus_data[CONF_BUS_STOP_ID]}_{''.join(self._bus_data[CONF_BUS_NUMBER])}"
             await self.async_set_unique_id(unique_id)
             self._abort_if_unique_id_configured()
+
+            _LOGGER.info(
+                "Configuration completed for stop_id=%s with buses=%s",
+                self._bus_data[CONF_BUS_STOP_ID],
+                self._bus_data[CONF_BUS_NUMBER],
+            )
 
             return self.async_create_entry(
                 title=f"버스(대중교통) 도착 정보 정류장 {self._bus_data[CONF_BUS_STOP_ID]}",

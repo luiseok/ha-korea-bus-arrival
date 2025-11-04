@@ -91,25 +91,78 @@ class BusDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self):
         """Fetch data from API."""
+        _LOGGER.debug(
+            "Updating bus data for stop_id=%s, buses=%s",
+            self.bus_stop_id,
+            self.bus_numbers,
+        )
+
         try:
             custom_headers = {
                 "X-Requested-With": "XMLHttpRequest"
             }
             api = KakaoBusAPI(self.session, self.bus_stop_id, self.bus_numbers, custom_headers)
             buses_info = await api.get_all_bus_info()
+
             if not buses_info:
-                _LOGGER.debug("버스 정보가 없습니다.")
-                return {}  # Avoid returning an empty dictionary to avoid UpdateFailed
-            
+                _LOGGER.warning(
+                    "No bus information received for stop_id=%s. This may indicate an issue with the bus stop or API.",
+                    self.bus_stop_id,
+                )
+                return {}  # Return empty dict instead of raising UpdateFailed
+
             # Convert bus information to a dictionary with bus numbers as keys
             buses_dict = {bus.get("name"): bus for bus in buses_info}
+
+            # Log which buses were successfully fetched
+            fetched_buses = list(buses_dict.keys())
+            _LOGGER.debug(
+                "Successfully updated data for %d buses at stop_id=%s: %s",
+                len(buses_dict),
+                self.bus_stop_id,
+                fetched_buses,
+            )
+
+            # Warn if configured buses are missing from the response
+            missing_buses = [num for num in self.bus_numbers if num not in buses_dict]
+            if missing_buses:
+                _LOGGER.warning(
+                    "Configured buses %s not found in API response for stop_id=%s. Available: %s",
+                    missing_buses,
+                    self.bus_stop_id,
+                    fetched_buses,
+                )
+
             return buses_dict
+
         except asyncio.TimeoutError as error:
-            raise UpdateFailed(f"Timeout error fetching data: {error}")
+            _LOGGER.error(
+                "Timeout fetching data for stop_id=%s (buses=%s): %s",
+                self.bus_stop_id,
+                self.bus_numbers,
+                error,
+            )
+            raise UpdateFailed(f"Timeout error fetching data for stop {self.bus_stop_id}: {error}")
+
         except aiohttp.ClientError as error:
-            raise UpdateFailed(f"Error fetching data: {error}")
+            _LOGGER.error(
+                "Client error fetching data for stop_id=%s (buses=%s): %s",
+                self.bus_stop_id,
+                self.bus_numbers,
+                error,
+                exc_info=True,
+            )
+            raise UpdateFailed(f"Client error fetching data for stop {self.bus_stop_id}: {error}")
+
         except Exception as error:
-            raise UpdateFailed(f"Unexpected error: {error}")
+            _LOGGER.error(
+                "Unexpected error fetching data for stop_id=%s (buses=%s): %s",
+                self.bus_stop_id,
+                self.bus_numbers,
+                error,
+                exc_info=True,
+            )
+            raise UpdateFailed(f"Unexpected error fetching data for stop {self.bus_stop_id}: {error}")
 
 
 class KoreaBusBaseSensor(CoordinatorEntity, SensorEntity):
@@ -153,7 +206,12 @@ class KoreaBusBaseSensor(CoordinatorEntity, SensorEntity):
             collect_datetime = datetime.strptime(collect_datetime_str, "%Y%m%d%H%M%S")
             return collect_datetime.strftime("%Y-%m-%d %H:%M:%S")
         except ValueError:
-            _LOGGER.error(f"collectDateTime 형식이 유효하지 않습니다: {collect_datetime_str}")
+            _LOGGER.warning(
+                "Invalid collectDateTime format for bus %s at stop %s: '%s' (expected format: YYYYMMDDHHmmss)",
+                self.bus_number,
+                self.entry.data.get(CONF_BUS_STOP_ID),
+                collect_datetime_str,
+            )
             return UNKNOWN_VALUE
 
     @property
@@ -161,17 +219,43 @@ class KoreaBusBaseSensor(CoordinatorEntity, SensorEntity):
         """Return the timestamp of the next bus arrival."""
         bus_info = self.coordinator.data.get(self.bus_number)
         if not bus_info:
-            _LOGGER.debug(f"bus_info is None for bus {self.bus_number}.")
+            _LOGGER.debug(
+                "No data available for bus %s at stop %s",
+                self.bus_number,
+                self.entry.data.get(CONF_BUS_STOP_ID),
+            )
             return None
+
         arrival_time = bus_info.get(self.ATTR_MAP["arrival_time"], 0)
         try:
             arrival_time = int(arrival_time)
             if arrival_time <= 0:
+                _LOGGER.debug(
+                    "No valid arrival time for bus %s at stop %s (arrival_time=%s)",
+                    self.bus_number,
+                    self.entry.data.get(CONF_BUS_STOP_ID),
+                    arrival_time,
+                )
                 return None
         except (ValueError, TypeError):
-            _LOGGER.error(f"arrivalTime 형식이 올바르지 않습니다: {arrival_time} for bus {self.bus_number}")
+            _LOGGER.error(
+                "Invalid arrival time format for bus %s at stop %s: '%s' (type=%s)",
+                self.bus_number,
+                self.entry.data.get(CONF_BUS_STOP_ID),
+                arrival_time,
+                type(arrival_time).__name__,
+            )
             return None
-        return dt_util.now() + timedelta(seconds=arrival_time)
+
+        arrival_timestamp = dt_util.now() + timedelta(seconds=arrival_time)
+        _LOGGER.debug(
+            "Bus %s at stop %s arriving in %d seconds at %s",
+            self.bus_number,
+            self.entry.data.get(CONF_BUS_STOP_ID),
+            arrival_time,
+            arrival_timestamp.isoformat(),
+        )
+        return arrival_timestamp
 
     @property
     def available(self) -> bool:
